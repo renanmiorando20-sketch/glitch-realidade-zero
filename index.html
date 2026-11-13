@@ -62,7 +62,7 @@
     </div>
     <div id="bossHud" style="position:fixed;top:19%;left:50%;transform:translateX(-50%);width:min(76%,360px);opacity:0;transition:opacity .4s;text-align:center;text-shadow:0 2px 12px #000;pointer-events:none"><div style="font-size:10px;letter-spacing:.25em;color:#ff9ab9;font-weight:900;margin-bottom:6px">CHEFÃO · COLOSSO DO VAZIO</div><div style="height:8px;border:1px solid #ff8db966;background:#190b20;border-radius:9px;overflow:hidden"><div id="bossFill" style="height:100%;width:100%;background:linear-gradient(90deg,#ff315f,#c16bff);box-shadow:0 0 15px #ff315f;transition:width .25s"></div></div></div>
     <div class="bottom">
-      <div class="hint" id="hint">Explore a ilha. O portal guarda um segredo.</div>
+      <div class="hint" id="hint">O Colosso observa. Colete os 3 fragmentos para despertá-lo.</div>
       <div class="controls">
         <div id="stick"><div id="nub"></div></div>
         <div class="actions">
@@ -182,7 +182,7 @@
     const bossHalo=new THREE.Mesh(new THREE.TorusGeometry(2.35,.12,12,64),new THREE.MeshBasicMaterial({color:0xa65bff,transparent:true,opacity:.9})); bossHalo.rotation.x=.45; boss.add(bossHalo);
     for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const spike=new THREE.Mesh(new THREE.ConeGeometry(.28,1.55,6),mat(0x4b236c,.3,.4,0x2d0748));spike.position.set(Math.cos(a)*1.65,Math.sin(a)*1.45,.1);spike.rotation.z=-a;boss.add(spike);}
     const bossLight=new THREE.PointLight(0xb42dff,18,18);bossLight.position.set(0,0,-1);boss.add(bossLight);
-    boss.visible=false; boss.userData.health=3; boss.userData.active=false; boss.userData.lastAttack=0; boss.userData.stunnedUntil=0;
+    boss.visible=true; boss.userData.health=3; boss.userData.active=false; boss.userData.lastAttack=0; boss.userData.stunnedUntil=0;
 
     // collectibles
     const shards=[];
@@ -235,7 +235,7 @@
     function animate(){
       requestAnimationFrame(animate);
       const dt=Math.min(clock.getDelta(),.033), t=clock.elapsedTime;
-      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='O COLOSSO despertou! Use o PULSO três vezes.';boss.visible=true;boss.userData.active=true;document.querySelector('#bossHud').style.opacity='1';notify('⚠ O COLOSSO DO VAZIO DESPERTOU!');}}}});
+      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='O COLOSSO despertou! Acerte-o com PULSO três vezes.';boss.visible=true;boss.userData.active=true;document.querySelector('#bossHud').style.opacity='1';notify('⚠ O COLOSSO DO VAZIO DESPERTOU!');}}}});
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
       if(boss.visible){
