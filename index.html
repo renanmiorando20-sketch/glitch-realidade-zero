@@ -297,7 +297,7 @@
           }else{
             boss.scale.setScalar(1.35);
           }
-          if(!slowed&&winding&&t>=boss.userData.windupUntil){
+          if(!slowed&&(boss.userData.windupUntil||0)>0&&t>=boss.userData.windupUntil){
             boss.userData.lungeUntil=t+.72;
             boss.userData.windupUntil=0;
           }
