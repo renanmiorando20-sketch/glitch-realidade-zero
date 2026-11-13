@@ -204,8 +204,8 @@
       state.pulseReady=false;
       const wave=new THREE.Mesh(new THREE.TorusGeometry(.7,.09,8,48),new THREE.MeshBasicMaterial({color:0x8ef7ff,transparent:true,opacity:.95}));
       wave.rotation.x=Math.PI/2; wave.position.copy(player.position); wave.position.y=.18; scene.add(wave); pulseWaves.push({mesh:wave,age:0});
-      if(boss.userData.active&&boss.userData.health>0&&boss.position.distanceTo(player.position)<7){
-        boss.userData.health--; boss.userData.stunnedUntil=clock.elapsedTime+2.2;
+      if(boss.userData.active&&boss.userData.health>0&&boss.position.distanceTo(player.position)<8){
+        boss.userData.health--; boss.userData.stunnedUntil=clock.elapsedTime+2.8;
         document.querySelector('#bossFill').style.width=(boss.userData.health/3*100)+'%';
         notify(boss.userData.health>0?'ACERTOU O COLOSSO! Mais um PULSO!':'COLOSSO DESTRUÍDO! O PORTAL ESTÁ LIVRE!');
         if(boss.userData.health<=0){boss.userData.active=false;boss.visible=false;document.querySelector('#bossHud').style.opacity='0';document.querySelector('#objectiveText').textContent='O Colosso caiu. Alcance o portal.';}
@@ -247,8 +247,7 @@
         bossCore.material.emissiveIntensity=stunned?.25:(boss.userData.active?2.1:1.5)+Math.sin(t*5)*.5;
         bossEye.scale.setScalar(stunned?.78:1+Math.sin(t*6)*.09);
         bossLight.intensity=stunned?5:(boss.userData.active?25:18)+Math.sin(t*5)*4;
-        // PERSEGUIÇÃO FORÇADA: usa a contagem real dos fragmentos, não depende
-        // do sinalizador active. O PULSO reduz a velocidade, mas nunca trava o chefe.
+        // IA 7.0 — caça equilibrada, investida telegrafada e fúria por vida.
         if(state.started&&state.shards>=3&&boss.visible&&boss.userData.health>0){
           boss.userData.active=true;
           const dx=player.position.x-boss.position.x;
@@ -256,26 +255,51 @@
           const distance=Math.hypot(dx,dz)||0.001;
           const dirX=dx/distance,dirZ=dz/distance;
           const slowed=t<boss.userData.stunnedUntil;
-          const chaseSpeed=slowed?1.4:(state.eventActive?7.5:6.0);
+          const rage=3-boss.userData.health;
+          const chaseSpeed=slowed?0.65:(state.eventActive?4.1+rage*.35:2.65+rage*.45);
+          const winding=t<(boss.userData.windupUntil||0);
+          const lunging=t<(boss.userData.lungeUntil||0);
           boss.rotation.y=Math.atan2(-dx,-dz);
-          if(distance>1.8){
-            const step=Math.min(chaseSpeed*dt,distance-1.8);
+
+          // A investida usa a direção marcada no aviso; dá tempo de saltar/desviar.
+          if(!slowed&&lunging){
+            const step=Math.min((7.2+rage*.6)*dt,Math.max(0,boss.userData.lungeDistance||0));
+            boss.position.x+=(boss.userData.lungeDirX||0)*step;
+            boss.position.z+=(boss.userData.lungeDirZ||0)*step;
+            boss.userData.lungeDistance=Math.max(0,(boss.userData.lungeDistance||0)-step);
+            const hitDistance=Math.hypot(player.position.x-boss.position.x,player.position.z-boss.position.z);
+            if(hitDistance<1.65&&boss.userData.hitAttack!==(boss.userData.attackId||0)){
+              boss.userData.hitAttack=boss.userData.attackId||0;
+              player.position.x+=(boss.userData.lungeDirX||0)*1.15;
+              player.position.z+=(boss.userData.lungeDirZ||0)*1.15;
+              state.vy=Math.max(state.vy,2.8);
+              notify('IMPACTO! Use o salto para escapar!');
+            }
+          }else if(!slowed&&!winding&&distance>2.35){
+            const step=Math.min(chaseSpeed*dt,distance-2.35);
             boss.position.x+=dirX*step;
             boss.position.z+=dirZ*step;
           }
-          if(!slowed&&distance<5.5&&t-boss.userData.lastAttack>2.0){
+
+          // Aviso visual/textual antes do bote. A frequência aumenta na fase final.
+          const cooldown=5.0-rage*.55;
+          if(!slowed&&!winding&&!lunging&&distance<6.2&&t-(boss.userData.lastAttack||0)>cooldown){
             boss.userData.lastAttack=t;
-            boss.userData.lungeUntil=t+.65;
-            notify('O COLOSSO ESTÁ INVESTINDO! DESVIE!');
+            boss.userData.attackId=(boss.userData.attackId||0)+1;
+            boss.userData.windupUntil=t+.9;
+            boss.userData.lungeDirX=dirX;
+            boss.userData.lungeDirZ=dirZ;
+            boss.userData.lungeDistance=Math.min(5.8,distance+1.2);
+            notify(rage===2?'FÚRIA MÁXIMA! ELE VAI ATACAR!':'O COLOSSO ESTÁ CARREGANDO… DESVIE!');
           }
-          if(!slowed&&t<(boss.userData.lungeUntil||0)){
-            const lunge=Math.min(8.5*dt,Math.max(0,distance-1.1));
-            boss.position.x+=dirX*lunge;
-            boss.position.z+=dirZ*lunge;
-            if(distance<2.0){
-              player.position.x+=dirX*1.5;
-              player.position.z+=dirZ*1.5;
-            }
+          if(!slowed&&winding){
+            boss.scale.setScalar(1.35+Math.sin(t*24)*.055);
+          }else{
+            boss.scale.setScalar(1.35);
+          }
+          if(!slowed&&winding&&t>=boss.userData.windupUntil){
+            boss.userData.lungeUntil=t+.72;
+            boss.userData.windupUntil=0;
           }
         }
       }
