@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#080817" />
+  <meta name="description" content="GLITCH: REALIDADE ZERO — explore o Arquipélago do Avesso." />
+  <title>GLITCH: REALIDADE ZERO</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #080817; touch-action: none; }
+    body { color: #fff; }
+    #game { position: fixed; inset: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; inset: 0; pointer-events: none; padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; justify-content: space-between; }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .brand { text-shadow: 0 2px 16px #000; }
+    .brand strong { display:block; letter-spacing:.16em; font-size:clamp(13px,3vw,18px); }
+    .brand span { display:block; color:#a7a5d5; font-size:10px; letter-spacing:.22em; margin-top:4px; }
+    .objective { background:rgba(9,10,31,.62); border:1px solid rgba(174,157,255,.25); border-radius:14px; padding:10px 13px; max-width:56%; backdrop-filter:blur(12px); font-size:12px; box-shadow:0 8px 30px #0005; }
+    .objective b { color:#bba8ff; display:block; font-size:10px; letter-spacing:.12em; margin-bottom:4px; }
+    .bottom { display:flex; justify-content:space-between; align-items:flex-end; }
+    .hint { color:#d0cbea; font-size:11px; background:#09091dbb; border:1px solid #aaa0ff33; padding:9px 12px; border-radius:12px; max-width:52%; backdrop-filter:blur(10px); }
+    .controls { display:flex; align-items:flex-end; gap:13px; pointer-events:auto; }
+    #stick { width:112px; height:112px; border-radius:50%; border:1px solid #c6bbff66; background:#17152d99; position:relative; touch-action:none; box-shadow:inset 0 0 25px #9b76ff22,0 8px 24px #0006; }
+    #nub { width:44px; height:44px; border-radius:50%; background:linear-gradient(145deg,#d5c8ff,#8066d8); box-shadow:0 3px 16px #9b76ff88; position:absolute; left:33px; top:33px; }
+    .actions { display:flex; flex-direction:column; gap:10px; }
+    .action { width:66px; height:66px; border-radius:50%; border:1px solid #c5b7ff88; color:white; font-weight:800; background:linear-gradient(145deg,#3b2d70dd,#17132ddd); box-shadow:0 6px 22px #0008; font-size:11px; letter-spacing:.06em; }
+    .action:active { transform:scale(.94); background:#7254c9; }
+    #jump { background:linear-gradient(145deg,#276b82ee,#142d50ee); }
+    #toast { position:fixed; left:50%; top:25%; transform:translate(-50%,-10px); opacity:0; transition:.35s; background:#100e2be8; border:1px solid #b8a5ff88; border-radius:14px; padding:12px 18px; font-size:13px; text-align:center; pointer-events:none; box-shadow:0 10px 40px #0008; }
+    #toast.show { opacity:1; transform:translate(-50%,0); }
+    #start { position:fixed; inset:0; display:grid; place-items:center; background:linear-gradient(180deg,#080817aa,#080817ee); padding:24px; }
+    .panel { max-width:440px; width:100%; text-align:center; padding:30px 22px; border:1px solid #a99aff55; border-radius:24px; background:linear-gradient(145deg,#17152dcc,#09091ddd); box-shadow:0 20px 80px #000a; backdrop-filter:blur(18px); }
+    .sigil { font-size:42px; color:#c9b8ff; text-shadow:0 0 28px #a68aff; }
+    .panel h1 { font-size:clamp(25px,7vw,38px); letter-spacing:.12em; margin:8px 0; }
+    .panel p { color:#c0bdd8; line-height:1.55; font-size:13px; }
+    #play { margin-top:12px; border:0; border-radius:999px; padding:15px 28px; color:#100d24; font-weight:900; letter-spacing:.12em; background:linear-gradient(90deg,#d9caff,#8edfff); }
+    .hidden { display:none !important; }
+    @media (max-width:380px) { #stick { width:94px;height:94px } #nub {left:25px;top:25px} .action{width:58px;height:58px} .hint{font-size:10px} }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+  <div class="hud">
+    <div class="top">
+      <div class="brand"><strong>GLITCH</strong><span>REALIDADE ZERO</span></div>
+      <div class="objective"><b>MISSÃO 001</b>Encontre os 3 fragmentos de realidade.</div>
+    </div>
+    <div class="bottom">
+      <div class="hint" id="hint">Explore a ilha. O portal guarda um segredo.</div>
+      <div class="controls">
+        <div id="stick"><div id="nub"></div></div>
+        <div class="actions">
+          <button class="action" id="fold" aria-label="Ativar dobra">DOBRA</button>
+          <button class="action" id="jump" aria-label="Pular">PULAR</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <div id="start">
+    <div class="panel">
+      <div class="sigil">◈</div>
+      <h1>GLITCH</h1>
+      <div style="letter-spacing:.3em;color:#a99aff;font-size:11px">REALIDADE ZERO</div>
+      <p>Você despertou no Arquipélago do Avesso. A gravidade não obedece às regras. A realidade está esperando para ser dobrada.</p>
+      <button id="play">ENTRAR NO MUNDO</button>
+    </div>
+  </div>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const host = document.querySelector('#game');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x09091d);
+    scene.fog = new THREE.FogExp2(0x09091d, 0.018);
+    const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 300);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    host.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0x9daaff, 0x21142f, 2.0));
+    const key = new THREE.DirectionalLight(0xffd9fa, 3.0);
+    key.position.set(-8, 16, 9); key.castShadow = true; scene.add(key);
+    const glow = new THREE.PointLight(0x8c54ff, 45, 45); glow.position.set(0, 5, -8); scene.add(glow);
+
+    const mat = (color, roughness=.75, metalness=.05, emissive=0x000000) => new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive });
+    const islandMat = mat(0x39315e), grassMat = mat(0x655a9a), rockMat = mat(0x292642), crystalMat = mat(0x8feaff,.22,.25,0x216b99);
+    const island = new THREE.Group(); scene.add(island);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(9, 6.5, 2.4, 9, 1), islandMat);
+    top.position.y = -1; top.receiveShadow = true; top.castShadow = true; island.add(top);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(9.05, 8.7, .45, 9), grassMat);
+    cap.position.y = .22; cap.receiveShadow = true; island.add(cap);
+    for (let i=0;i<12;i++) {
+      const a=i/12*Math.PI*2, r=5.7+Math.random()*1.6;
+      const b=new THREE.Mesh(new THREE.DodecahedronGeometry(.7+Math.random()*1.2,0),rockMat);
+      b.position.set(Math.cos(a)*r,-2.4-Math.random()*2,Math.sin(a)*r); b.rotation.set(Math.random(),Math.random(),Math.random()); b.castShadow=true; island.add(b);
+    }
+    // floating landforms
+    for(let i=0;i<7;i++){
+      const a=i/7*Math.PI*2, r=13+Math.random()*5;
+      const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1.4+Math.random()*2,1),mat(i%2?0x34305e:0x51447e));
+      rock.position.set(Math.cos(a)*r,3+Math.random()*8,Math.sin(a)*r-3); rock.scale.y=1.6; rock.castShadow=true; scene.add(rock);
+      rock.userData.float={y:rock.position.y,phase:Math.random()*6};
+    }
+    // impossible upward waterfall ribbons
+    for(let i=0;i<3;i++){
+      const water=new THREE.Mesh(new THREE.CylinderGeometry(.12,.28,7,8),new THREE.MeshBasicMaterial({color:0x69dfff,transparent:true,opacity:.48}));
+      water.position.set(-5+i*5,4,-2-i*2); water.rotation.z=Math.PI; scene.add(water);
+    }
+    // strange trees
+    for(let i=0;i<6;i++){
+      const a=i/6*Math.PI*2, x=Math.cos(a)*6.1, z=Math.sin(a)*6.1;
+      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.28,2.5,7),mat(0x27233f)); trunk.position.set(x,1.5,z); trunk.rotation.z=(i%2?-.25:.25); trunk.castShadow=true; island.add(trunk);
+      const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.05,1),mat(i%2?0x9b72cf:0x55a9b8,.45,0,0x281144)); crown.position.set(x+(i%2?.3:-.3),2.9,z); crown.scale.set(.85,1.35,.85); island.add(crown);
+    }
+    // portal ring
+    const portal=new THREE.Group(); portal.position.set(0,2,-9); scene.add(portal);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(2.05,.18,16,72),new THREE.MeshStandardMaterial({color:0xc7a5ff,metalness:.55,roughness:.2,emissive:0x7142ff,emissiveIntensity:2}));
+    portal.add(ring);
+    const core=new THREE.Mesh(new THREE.CircleGeometry(1.88,48),new THREE.MeshBasicMaterial({color:0x5423a0,transparent:true,opacity:.36,side:THREE.DoubleSide})); portal.add(core);
+    const portalLight=new THREE.PointLight(0x9c59ff,22,15); portalLight.position.set(0,0,1); portal.add(portalLight);
+
+    // player
+    const player=new THREE.Group(); scene.add(player);
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.48,.85,5,10),mat(0xe8e5ff,.35,.25)); body.position.y=.95; body.castShadow=true; player.add(body);
+    const visor=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),new THREE.MeshStandardMaterial({color:0x63eaff,metalness:.5,roughness:.12,emissive:0x126b9a,emissiveIntensity:1.2}));
+    visor.scale.set(1,.58,.42); visor.position.set(0,1.3,-.37); player.add(visor);
+    const pack=new THREE.Mesh(new THREE.BoxGeometry(.48,.55,.25),mat(0x6b4da8,.45,.3,0x251044)); pack.position.set(0,.95,.42); player.add(pack);
+    player.position.set(0,.5,4);
+
+    // collectibles
+    const shards=[];
+    for(let i=0;i<3;i++){
+      const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.55),crystalMat.clone());
+      const a=i/3*Math.PI*2+.4; shard.position.set(Math.cos(a)*5,.95,Math.sin(a)*5);
+      shard.userData.baseY=shard.position.y; shard.userData.collected=false; scene.add(shard); shards.push(shard);
+    }
+    // stars
+    const starGeo=new THREE.BufferGeometry(), starPos=[];
+    for(let i=0;i<650;i++){ starPos.push((Math.random()-.5)*150,Math.random()*65-8,(Math.random()-.5)*150); }
+    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
+    scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xc8c2ff,size:.12,transparent:true,opacity:.8})));
+
+    const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0};
+    const toast=document.querySelector('#toast');
+    let toastTimer;
+    function notify(message){toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2100);}
+    const stick=document.querySelector('#stick'), nub=document.querySelector('#nub');
+    let stickId=null, axisX=0, axisY=0;
+    function setStick(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.34,d=Math.hypot(dx,dy)||1;if(d>max){dx=dx/d*max;dy=dy/d*max;}axisX=dx/max;axisY=dy/max;nub.style.transform=`translate(${dx}px,${dy}px)`;}
+    stick.addEventListener('pointerdown',e=>{stickId=e.pointerId;stick.setPointerCapture(stickId);setStick(e);});
+    stick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)setStick(e);});
+    function releaseStick(e){if(e.pointerId!==stickId)return;stickId=null;axisX=axisY=0;nub.style.transform='translate(0,0)';}
+    stick.addEventListener('pointerup',releaseStick);stick.addEventListener('pointercancel',releaseStick);
+    document.querySelector('#jump').addEventListener('pointerdown',e=>{e.preventDefault();if(state.started&&state.grounded){state.vy=8.5;state.grounded=false;}});
+    document.querySelector('#fold').addEventListener('pointerdown',e=>{e.preventDefault();if(!state.started)return;state.folded=!state.folded;notify(state.folded?'DOBRA ATIVADA — gravidade instável':'DOBRA desativada');});
+    document.querySelector('#play').addEventListener('click',()=>{state.started=true;document.querySelector('#start').classList.add('hidden');notify('Encontre os três fragmentos!');});
+    const clock=new THREE.Clock();
+    function animate(){
+      requestAnimationFrame(animate);
+      const dt=Math.min(clock.getDelta(),.033), t=clock.elapsedTime;
+      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;notify(`Fragmento recuperado: ${state.shards}/3`);if(state.shards===3)notify('Portal estabilizado! Vá até ele.');}}});
+      scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
+      portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
+      if(state.started){
+        const speed=state.folded?8.5:5.2;
+        const forward=new THREE.Vector3(-axisX,0,-axisY);
+        if(forward.lengthSq()>0){forward.normalize();const angle=Math.atan2(forward.x,forward.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,angle,.18);state.vx=forward.x*speed;state.vz=forward.z*speed;}else{state.vx*=.82;state.vz*=.82;}
+        player.position.x+=state.vx*dt;player.position.z+=state.vz*dt;
+        const radius=Math.hypot(player.position.x,player.position.z);if(radius>7.65){player.position.x*=7.65/radius;player.position.z*=7.65/radius;}
+        state.vy-=18*dt;player.position.y+=state.vy*dt;
+        if(player.position.y<=.5){player.position.y=.5;state.vy=0;state.grounded=true;}
+        body.position.y=.95+Math.sin(t*10)*(Math.abs(state.vx)+Math.abs(state.vz)>.5?.045:0);
+        const target=new THREE.Vector3(player.position.x,player.position.y+4.2,player.position.z+8.5);
+        camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+1,player.position.z-2.5);
+        if(state.shards===3&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2)notify('DIMENSÃO DESBLOQUEADA — em breve!');
+      }else{camera.position.lerp(new THREE.Vector3(0,7,16),.025);camera.lookAt(0,1,0);}
+      renderer.render(scene,camera);
+    }
+    animate();
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));});
+  </script>
+</body>
+</html>
