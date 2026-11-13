@@ -166,6 +166,14 @@
     const pack=new THREE.Mesh(new THREE.BoxGeometry(.48,.55,.25),mat(0x6b4da8,.45,.3,0x251044)); pack.position.set(0,.95,.42); player.add(pack);
     player.position.set(0,.5,4);
 
+    // SENTINELA: a primeira criatura que caça o jogador quando a ruptura começa.
+    const sentinel=new THREE.Group(); sentinel.position.set(6,1.6,-3); scene.add(sentinel);
+    const sentBody=new THREE.Mesh(new THREE.IcosahedronGeometry(.92,1),new THREE.MeshStandardMaterial({color:0x21142f,roughness:.3,metalness:.4,emissive:0x3a075e,emissiveIntensity:1.1})); sentinel.add(sentBody);
+    const sentEye=new THREE.Mesh(new THREE.SphereGeometry(.3,20,16),new THREE.MeshBasicMaterial({color:0xff315f})); sentEye.position.set(0,.12,-.82); sentinel.add(sentEye);
+    const sentGlow=new THREE.PointLight(0xff245f,8,8); sentGlow.position.set(0,0,-1); sentinel.add(sentGlow);
+    for(let i=0;i<6;i++){const spike=new THREE.Mesh(new THREE.ConeGeometry(.19,.85,5),mat(0x4d286d,.35,.25,0x21052f));const a=i/6*Math.PI*2;spike.position.set(Math.cos(a)*.83,Math.sin(a)*.55,.12);spike.rotation.z=-a;sentinel.add(spike);}
+    sentinel.userData.stunnedUntil=0; sentinel.userData.awake=false; sentinel.userData.hitAt=0;
+
     // collectibles
     const shards=[];
     for(let i=0;i<3;i++){
@@ -186,7 +194,9 @@
       state.pulseReady=false;
       const wave=new THREE.Mesh(new THREE.TorusGeometry(.7,.09,8,48),new THREE.MeshBasicMaterial({color:0x8ef7ff,transparent:true,opacity:.95}));
       wave.rotation.x=Math.PI/2; wave.position.copy(player.position); wave.position.y=.18; scene.add(wave); pulseWaves.push({mesh:wave,age:0});
-      notify('PULSO DE REALIDADE — EXPANSÃO!');
+      const enemyDistance=sentinel.position.distanceTo(player.position);
+      if(sentinel.userData.awake&&enemyDistance<8){sentinel.userData.stunnedUntil=clock.elapsedTime+3.8;notify('SENTINELA ATORDOADA! CORRA!');}
+      else notify('PULSO DE REALIDADE — EXPANSÃO!');
       setTimeout(()=>{state.pulseReady=true;document.querySelector('#pulse').textContent='PULSO';},4200);
       document.querySelector('#pulse').textContent='...';
     }
@@ -212,11 +222,30 @@
       shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='Portal estabilizado! Alcance o núcleo.';notify('PORTAL ESTABILIZADO! Encontre o núcleo.');}}}});
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
+      // A criatura desperta após alguns segundos e persegue o jogador.
+      if(state.started&&t>11) sentinel.userData.awake=true;
+      if(sentinel.userData.awake){
+        const stunned=t<sentinel.userData.stunnedUntil;
+        sentinel.rotation.y=Math.atan2(player.position.x-sentinel.position.x,player.position.z-sentinel.position.z);
+        sentinel.position.y=1.45+Math.sin(t*4)*.28;
+        if(!stunned){
+          const dx=player.position.x-sentinel.position.x, dz=player.position.z-sentinel.position.z;
+          const d=Math.hypot(dx,dz)||1, huntSpeed=state.eventActive?3.7:1.65;
+          if(d>1.25){sentinel.position.x+=(dx/d)*huntSpeed*dt;sentinel.position.z+=(dz/d)*huntSpeed*dt;}
+          if(d<1.35&&t-sentinel.userData.hitAt>2.2){
+            sentinel.userData.hitAt=t;
+            player.position.x+=(dx/d)*1.7;player.position.z+=(dz/d)*1.7;
+            notify('A SENTINELA TE ALCANÇOU! USE O PULSO!');
+          }
+        }
+        sentBody.material.emissiveIntensity=stunned?0.15:1.1+Math.sin(t*8)*.45;
+        sentEye.material.color.setHex(stunned?0x67eaff:0xff315f);
+      }
       eye.rotation.y=Math.sin(t*.28)*.22; eye.rotation.x=Math.sin(t*.42)*.08;
       eyeRing.rotation.z=t*.12; iris.position.x=Math.sin(t*.7)*.42;
       pulseWaves.forEach((w,i)=>{w.age+=dt;w.mesh.scale.setScalar(1+w.age*7);w.mesh.material.opacity=Math.max(0,1-w.age/1.15);if(w.age>1.15){scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();pulseWaves.splice(i,1);}});
       // Evento global: a realidade muda de frequência por alguns segundos.
-      if(state.started&&t>nextEvent&&!state.eventActive){state.eventActive=true;eventEnd=t+7;nextEvent=t+34;document.querySelector('#worldEvent').classList.add('active');document.querySelector('#eventLabel').classList.add('show');notify('⚠ ANOMALIA DIMENSIONAL DETECTADA');}
+      if(state.started&&t>nextEvent&&!state.eventActive){state.eventActive=true;eventEnd=t+7;nextEvent=t+34;document.querySelector('#worldEvent').classList.add('active');document.querySelector('#eventLabel').classList.add('show');notify('⚠ ANOMALIA DIMENSIONAL — A SENTINELA FICOU MAIS RÁPIDA!');}
       if(state.eventActive&&t>eventEnd){state.eventActive=false;document.querySelector('#worldEvent').classList.remove('active');document.querySelector('#eventLabel').classList.remove('show');notify('A realidade voltou a estabilizar... por enquanto.');}
       if(state.started){
         const speed=state.folded?8.5:5.2;
