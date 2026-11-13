@@ -247,32 +247,34 @@
         bossCore.material.emissiveIntensity=stunned?.25:(boss.userData.active?2.1:1.5)+Math.sin(t*5)*.5;
         bossEye.scale.setScalar(stunned?.78:1+Math.sin(t*6)*.09);
         bossLight.intensity=stunned?5:(boss.userData.active?25:18)+Math.sin(t*5)*4;
-        if(boss.userData.active&&!stunned&&boss.userData.health>0&&state.started){
-          // Direção recalculada a cada quadro: o Colosso sempre caça a posição atual do jogador.
-          const dx=player.position.x-boss.position.x,dz=player.position.z-boss.position.z;
-          const d=Math.hypot(dx,dz)||1;
-          const dirX=dx/d,dirZ=dz/d;
-          // O olho fica na face -Z do modelo; este ângulo faz o rosto mirar o jogador.
+        // PERSEGUIÇÃO FORÇADA: usa a contagem real dos fragmentos, não depende
+        // do sinalizador active. O PULSO reduz a velocidade, mas nunca trava o chefe.
+        if(state.started&&state.shards>=3&&boss.visible&&boss.userData.health>0){
+          boss.userData.active=true;
+          const dx=player.position.x-boss.position.x;
+          const dz=player.position.z-boss.position.z;
+          const distance=Math.hypot(dx,dz)||0.001;
+          const dirX=dx/distance,dirZ=dz/distance;
+          const slowed=t<boss.userData.stunnedUntil;
+          const chaseSpeed=slowed?1.4:(state.eventActive?7.5:6.0);
           boss.rotation.y=Math.atan2(-dx,-dz);
-          const chaseSpeed=state.eventActive?6.4:5.2;
-          if(d>1.95){
-            const step=Math.min(chaseSpeed*dt,d-1.95);
+          if(distance>1.8){
+            const step=Math.min(chaseSpeed*dt,distance-1.8);
             boss.position.x+=dirX*step;
             boss.position.z+=dirZ*step;
           }
-          // Investida curta e perceptível quando chega perto.
-          if(d<5.2&&t-boss.userData.lastAttack>2.0){
+          if(!slowed&&distance<5.5&&t-boss.userData.lastAttack>2.0){
             boss.userData.lastAttack=t;
-            boss.userData.lungeUntil=t+.55;
-            notify('O COLOSSO ATACA! DESVIE AGORA!');
+            boss.userData.lungeUntil=t+.65;
+            notify('O COLOSSO ESTÁ INVESTINDO! DESVIE!');
           }
-          if(t<(boss.userData.lungeUntil||0)){
-            const lunge=Math.min(7.2*dt,Math.max(0,d-1.15));
+          if(!slowed&&t<(boss.userData.lungeUntil||0)){
+            const lunge=Math.min(8.5*dt,Math.max(0,distance-1.1));
             boss.position.x+=dirX*lunge;
             boss.position.z+=dirZ*lunge;
-            if(d<2.0){
-              player.position.x+=dirX*1.35;
-              player.position.z+=dirZ*1.35;
+            if(distance<2.0){
+              player.position.x+=dirX*1.5;
+              player.position.z+=dirZ*1.5;
             }
           }
         }
