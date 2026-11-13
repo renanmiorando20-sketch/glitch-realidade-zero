@@ -20,6 +20,9 @@
     .brand span { display:block; color:#a7a5d5; font-size:10px; letter-spacing:.22em; margin-top:4px; }
     .objective { background:rgba(9,10,31,.62); border:1px solid rgba(174,157,255,.25); border-radius:14px; padding:10px 13px; max-width:56%; backdrop-filter:blur(12px); font-size:12px; box-shadow:0 8px 30px #0005; }
     .objective b { color:#bba8ff; display:block; font-size:10px; letter-spacing:.12em; margin-bottom:4px; }
+    .progress { height:4px; background:#ffffff20; border-radius:9px; margin-top:9px; overflow:hidden; }
+    #progressFill { height:100%; width:0%; background:linear-gradient(90deg,#a78bfa,#67e8f9); transition:width .35s; box-shadow:0 0 12px #8d7bff; }
+    #counter { color:#b9eaff; font-weight:800; margin-top:5px; font-size:11px; }
     .bottom { display:flex; justify-content:space-between; align-items:flex-end; }
     .hint { color:#d0cbea; font-size:11px; background:#09091dbb; border:1px solid #aaa0ff33; padding:9px 12px; border-radius:12px; max-width:52%; backdrop-filter:blur(10px); }
     .controls { display:flex; align-items:flex-end; gap:13px; pointer-events:auto; }
@@ -49,7 +52,7 @@
   <div class="hud">
     <div class="top">
       <div class="brand"><strong>GLITCH</strong><span>REALIDADE ZERO</span></div>
-      <div class="objective"><b>MISSÃO 001</b>Encontre os 3 fragmentos de realidade.</div>
+      <div class="objective"><b>MISSÃO 001 · O DESPERTAR</b><span id="objectiveText">Encontre os 3 fragmentos de realidade.</span><div id="counter">FRAGMENTOS 0 / 3</div><div class="progress"><div id="progressFill"></div></div></div>
     </div>
     <div class="bottom">
       <div class="hint" id="hint">Explore a ilha. O portal guarda um segredo.</div>
@@ -152,7 +155,7 @@
     starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
     scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xc8c2ff,size:.12,transparent:true,opacity:.8})));
 
-    const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0};
+    const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0, completed:false};
     const toast=document.querySelector('#toast');
     let toastTimer;
     function notify(message){toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2100);}
@@ -164,27 +167,28 @@
     function releaseStick(e){if(e.pointerId!==stickId)return;stickId=null;axisX=axisY=0;nub.style.transform='translate(0,0)';}
     stick.addEventListener('pointerup',releaseStick);stick.addEventListener('pointercancel',releaseStick);
     document.querySelector('#jump').addEventListener('pointerdown',e=>{e.preventDefault();if(state.started&&state.grounded){state.vy=8.5;state.grounded=false;}});
-    document.querySelector('#fold').addEventListener('pointerdown',e=>{e.preventDefault();if(!state.started)return;state.folded=!state.folded;notify(state.folded?'DOBRA ATIVADA — gravidade instável':'DOBRA desativada');});
+    document.querySelector('#fold').addEventListener('pointerdown',e=>{e.preventDefault();if(!state.started)return;state.folded=!state.folded;document.querySelector('#fold').textContent=state.folded?'ATIVA':'DOBRA';notify(state.folded?'DOBRA ATIVADA — gravidade reduzida e velocidade ampliada':'Gravidade estabilizada');});
     document.querySelector('#play').addEventListener('click',()=>{state.started=true;document.querySelector('#start').classList.add('hidden');notify('Encontre os três fragmentos!');});
     const clock=new THREE.Clock();
     function animate(){
       requestAnimationFrame(animate);
       const dt=Math.min(clock.getDelta(),.033), t=clock.elapsedTime;
-      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;notify(`Fragmento recuperado: ${state.shards}/3`);if(state.shards===3)notify('Portal estabilizado! Vá até ele.');}}});
+      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='Portal estabilizado! Alcance o núcleo.';notify('PORTAL ESTABILIZADO! Encontre o núcleo.');}}}});
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
       if(state.started){
         const speed=state.folded?8.5:5.2;
-        const forward=new THREE.Vector3(-axisX,0,-axisY);
+        // Joystick: cima move para -Z e direita para +X.
+        const forward=new THREE.Vector3(axisX,0,axisY);
         if(forward.lengthSq()>0){forward.normalize();const angle=Math.atan2(forward.x,forward.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,angle,.18);state.vx=forward.x*speed;state.vz=forward.z*speed;}else{state.vx*=.82;state.vz*=.82;}
         player.position.x+=state.vx*dt;player.position.z+=state.vz*dt;
         const radius=Math.hypot(player.position.x,player.position.z);if(radius>7.65){player.position.x*=7.65/radius;player.position.z*=7.65/radius;}
-        state.vy-=18*dt;player.position.y+=state.vy*dt;
+        state.vy-=(state.folded?7.5:18)*dt;player.position.y+=state.vy*dt;
         if(player.position.y<=.5){player.position.y=.5;state.vy=0;state.grounded=true;}
         body.position.y=.95+Math.sin(t*10)*(Math.abs(state.vx)+Math.abs(state.vz)>.5?.045:0);
         const target=new THREE.Vector3(player.position.x,player.position.y+4.2,player.position.z+8.5);
         camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+1,player.position.z-2.5);
-        if(state.shards===3&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2)notify('DIMENSÃO DESBLOQUEADA — em breve!');
+        if(state.shards===3&&!state.completed&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2){state.completed=true;document.querySelector('#objectiveText').textContent='Dimensão 02 desbloqueada. Você venceu a primeira ruptura!';document.querySelector('#hint').textContent='Primeira ruptura concluída. Novas dimensões em breve.';notify('✦ RUPTURA CONCLUÍDA — DIMENSÃO 02 DESBLOQUEADA ✦');}
       }else{camera.position.lerp(new THREE.Vector3(0,7,16),.025);camera.lookAt(0,1,0);}
       renderer.render(scene,camera);
     }
