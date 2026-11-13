@@ -34,6 +34,12 @@
     #jump { background:linear-gradient(145deg,#276b82ee,#142d50ee); }
     #toast { position:fixed; left:50%; top:25%; transform:translate(-50%,-10px); opacity:0; transition:.35s; background:#100e2be8; border:1px solid #b8a5ff88; border-radius:14px; padding:12px 18px; font-size:13px; text-align:center; pointer-events:none; box-shadow:0 10px 40px #0008; }
     #toast.show { opacity:1; transform:translate(-50%,0); }
+    .world-event { position:fixed; inset:0; pointer-events:none; opacity:0; border:5px solid #bd7bff; box-shadow:inset 0 0 90px #a33cff88; transition:opacity .25s; }
+    .world-event.active { opacity:1; animation:riftFlash 1.1s ease-in-out infinite alternate; }
+    @keyframes riftFlash { from {filter:hue-rotate(0deg);box-shadow:inset 0 0 35px #a33cff55} to {filter:hue-rotate(70deg);box-shadow:inset 0 0 110px #42eaff99} }
+    #eventLabel { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%); color:#fff; font-weight:900; letter-spacing:.2em; font-size:clamp(13px,4vw,22px); text-align:center; text-shadow:0 0 18px #c36bff; opacity:0; pointer-events:none; }
+    #eventLabel.show { opacity:1; }
+    #pulse { background:linear-gradient(145deg,#8a3d91ee,#321947ee); }
     #start { position:fixed; inset:0; display:grid; place-items:center; background:linear-gradient(180deg,#080817aa,#080817ee); padding:24px; }
     .panel { max-width:440px; width:100%; text-align:center; padding:30px 22px; border:1px solid #a99aff55; border-radius:24px; background:linear-gradient(145deg,#17152dcc,#09091ddd); box-shadow:0 20px 80px #000a; backdrop-filter:blur(18px); }
     .sigil { font-size:42px; color:#c9b8ff; text-shadow:0 0 28px #a68aff; }
@@ -60,12 +66,15 @@
         <div id="stick"><div id="nub"></div></div>
         <div class="actions">
           <button class="action" id="fold" aria-label="Ativar dobra">DOBRA</button>
+          <button class="action" id="pulse" aria-label="Disparar pulso">PULSO</button>
           <button class="action" id="jump" aria-label="Pular">PULAR</button>
         </div>
       </div>
     </div>
   </div>
   <div id="toast"></div>
+  <div class="world-event" id="worldEvent"></div>
+  <div id="eventLabel">A REALIDADE ESTÁ RACHANDO</div>
   <div id="start">
     <div class="panel">
       <div class="sigil">◈</div>
@@ -127,6 +136,21 @@
       const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.28,2.5,7),mat(0x27233f)); trunk.position.set(x,1.5,z); trunk.rotation.z=(i%2?-.25:.25); trunk.castShadow=true; island.add(trunk);
       const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.05,1),mat(i%2?0x9b72cf:0x55a9b8,.45,0,0x281144)); crown.position.set(x+(i%2?.3:-.3),2.9,z); crown.scale.set(.85,1.35,.85); island.add(crown);
     }
+    // O OLHO DO VAZIO: uma entidade colossal observa a ilha do céu.
+    const eye=new THREE.Group(); eye.position.set(0,19,-34); scene.add(eye);
+    const eyeShell=new THREE.Mesh(new THREE.SphereGeometry(5.2,32,24),mat(0x171329,.28,.5,0x2b124b)); eye.add(eyeShell);
+    const iris=new THREE.Mesh(new THREE.SphereGeometry(2.05,32,24),new THREE.MeshStandardMaterial({color:0x9b54ff,metalness:.35,roughness:.18,emissive:0x6d20ff,emissiveIntensity:2.5})); iris.scale.set(1,.62,.35); iris.position.z=4.55; eye.add(iris);
+    const pupil=new THREE.Mesh(new THREE.SphereGeometry(.72,24,18),new THREE.MeshBasicMaterial({color:0x05030d})); pupil.scale.set(.65,1,.4); pupil.position.z=5.2; eye.add(pupil);
+    const eyeRing=new THREE.Mesh(new THREE.TorusGeometry(6.1,.12,12,96),new THREE.MeshBasicMaterial({color:0x9b68ff,transparent:true,opacity:.8})); eye.add(eyeRing);
+    const eyeLight=new THREE.PointLight(0x873dff,65,65); eyeLight.position.set(0,0,4); eye.add(eyeLight);
+    // Ruínas impossíveis suspensas no horizonte.
+    for(let i=0;i<9;i++){
+      const a=i/9*Math.PI*2, r=24+(i%3)*3;
+      const tower=new THREE.Group(); tower.position.set(Math.cos(a)*r,5+(i%4)*2,Math.sin(a)*r-10);
+      const shaft=new THREE.Mesh(new THREE.BoxGeometry(1.1,5+(i%3)*2,1.1),mat(i%2?0x30234d:0x263e5c,.4,.35,0x130c29)); shaft.rotation.z=(i%2?.12:-.12); tower.add(shaft);
+      const crown=new THREE.Mesh(new THREE.OctahedronGeometry(1.1),new THREE.MeshStandardMaterial({color:0x8e6aff,emissive:0x4b20aa,emissiveIntensity:1.5,metalness:.4})); crown.position.y=4+(i%3); tower.add(crown); scene.add(tower);
+      tower.userData.float={y:tower.position.y,phase:i*.8};
+    }
     // portal ring
     const portal=new THREE.Group(); portal.position.set(0,2,-9); scene.add(portal);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(2.05,.18,16,72),new THREE.MeshStandardMaterial({color:0xc7a5ff,metalness:.55,roughness:.2,emissive:0x7142ff,emissiveIntensity:2}));
@@ -155,7 +179,18 @@
     starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
     scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xc8c2ff,size:.12,transparent:true,opacity:.8})));
 
-    const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0, completed:false};
+    const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0, completed:false, pulseReady:true, eventActive:false};
+    const pulseWaves=[];
+    function firePulse(){
+      if(!state.started||!state.pulseReady)return;
+      state.pulseReady=false;
+      const wave=new THREE.Mesh(new THREE.TorusGeometry(.7,.09,8,48),new THREE.MeshBasicMaterial({color:0x8ef7ff,transparent:true,opacity:.95}));
+      wave.rotation.x=Math.PI/2; wave.position.copy(player.position); wave.position.y=.18; scene.add(wave); pulseWaves.push({mesh:wave,age:0});
+      notify('PULSO DE REALIDADE — EXPANSÃO!');
+      setTimeout(()=>{state.pulseReady=true;document.querySelector('#pulse').textContent='PULSO';},4200);
+      document.querySelector('#pulse').textContent='...';
+    }
+    document.querySelector('#pulse').addEventListener('pointerdown',e=>{e.preventDefault();firePulse();});
     const toast=document.querySelector('#toast');
     let toastTimer;
     function notify(message){toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2100);}
@@ -170,12 +205,19 @@
     document.querySelector('#fold').addEventListener('pointerdown',e=>{e.preventDefault();if(!state.started)return;state.folded=!state.folded;document.querySelector('#fold').textContent=state.folded?'ATIVA':'DOBRA';notify(state.folded?'DOBRA ATIVADA — gravidade reduzida e velocidade ampliada':'Gravidade estabilizada');});
     document.querySelector('#play').addEventListener('click',()=>{state.started=true;document.querySelector('#start').classList.add('hidden');notify('Encontre os três fragmentos!');});
     const clock=new THREE.Clock();
+    let nextEvent=17, eventEnd=0, eventAnnounced=false;
     function animate(){
       requestAnimationFrame(animate);
       const dt=Math.min(clock.getDelta(),.033), t=clock.elapsedTime;
       shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='Portal estabilizado! Alcance o núcleo.';notify('PORTAL ESTABILIZADO! Encontre o núcleo.');}}}});
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
+      eye.rotation.y=Math.sin(t*.28)*.22; eye.rotation.x=Math.sin(t*.42)*.08;
+      eyeRing.rotation.z=t*.12; iris.position.x=Math.sin(t*.7)*.42;
+      pulseWaves.forEach((w,i)=>{w.age+=dt;w.mesh.scale.setScalar(1+w.age*7);w.mesh.material.opacity=Math.max(0,1-w.age/1.15);if(w.age>1.15){scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();pulseWaves.splice(i,1);}});
+      // Evento global: a realidade muda de frequência por alguns segundos.
+      if(state.started&&t>nextEvent&&!state.eventActive){state.eventActive=true;eventEnd=t+7;nextEvent=t+34;document.querySelector('#worldEvent').classList.add('active');document.querySelector('#eventLabel').classList.add('show');notify('⚠ ANOMALIA DIMENSIONAL DETECTADA');}
+      if(state.eventActive&&t>eventEnd){state.eventActive=false;document.querySelector('#worldEvent').classList.remove('active');document.querySelector('#eventLabel').classList.remove('show');notify('A realidade voltou a estabilizar... por enquanto.');}
       if(state.started){
         const speed=state.folded?8.5:5.2;
         // Joystick: cima move para -Z e direita para +X.
