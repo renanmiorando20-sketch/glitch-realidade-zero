@@ -60,6 +60,7 @@
       <div class="brand"><strong>GLITCH</strong><span>REALIDADE ZERO</span></div>
       <div class="objective"><b>MISSÃO 001 · O DESPERTAR</b><span id="objectiveText">Encontre os 3 fragmentos de realidade.</span><div id="counter">FRAGMENTOS 0 / 3</div><div class="progress"><div id="progressFill"></div></div></div>
     </div>
+    <div id="bossHud" style="position:fixed;top:19%;left:50%;transform:translateX(-50%);width:min(76%,360px);opacity:0;transition:opacity .4s;text-align:center;text-shadow:0 2px 12px #000;pointer-events:none"><div style="font-size:10px;letter-spacing:.25em;color:#ff9ab9;font-weight:900;margin-bottom:6px">CHEFÃO · COLOSSO DO VAZIO</div><div style="height:8px;border:1px solid #ff8db966;background:#190b20;border-radius:9px;overflow:hidden"><div id="bossFill" style="height:100%;width:100%;background:linear-gradient(90deg,#ff315f,#c16bff);box-shadow:0 0 15px #ff315f;transition:width .25s"></div></div></div>
     <div class="bottom">
       <div class="hint" id="hint">Explore a ilha. O portal guarda um segredo.</div>
       <div class="controls">
@@ -174,6 +175,15 @@
     for(let i=0;i<6;i++){const spike=new THREE.Mesh(new THREE.ConeGeometry(.19,.85,5),mat(0x4d286d,.35,.25,0x21052f));const a=i/6*Math.PI*2;spike.position.set(Math.cos(a)*.83,Math.sin(a)*.55,.12);spike.rotation.z=-a;sentinel.add(spike);}
     sentinel.userData.stunnedUntil=0; sentinel.userData.awake=false; sentinel.userData.hitAt=0;
 
+    // COLOSSO DO VAZIO: guardião da passagem para a próxima dimensão.
+    const boss=new THREE.Group(); boss.position.set(0,2.2,-5.7); scene.add(boss);
+    const bossCore=new THREE.Mesh(new THREE.IcosahedronGeometry(1.65,1),new THREE.MeshStandardMaterial({color:0x20102e,metalness:.65,roughness:.22,emissive:0x510b75,emissiveIntensity:1.5})); boss.add(bossCore);
+    const bossEye=new THREE.Mesh(new THREE.SphereGeometry(.62,24,18),new THREE.MeshStandardMaterial({color:0xff3b78,emissive:0xff174f,emissiveIntensity:2.4,metalness:.25,roughness:.15})); bossEye.position.set(0,.12,-1.48); boss.add(bossEye);
+    const bossHalo=new THREE.Mesh(new THREE.TorusGeometry(2.35,.12,12,64),new THREE.MeshBasicMaterial({color:0xa65bff,transparent:true,opacity:.9})); bossHalo.rotation.x=.45; boss.add(bossHalo);
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const spike=new THREE.Mesh(new THREE.ConeGeometry(.28,1.55,6),mat(0x4b236c,.3,.4,0x2d0748));spike.position.set(Math.cos(a)*1.65,Math.sin(a)*1.45,.1);spike.rotation.z=-a;boss.add(spike);}
+    const bossLight=new THREE.PointLight(0xb42dff,18,18);bossLight.position.set(0,0,-1);boss.add(bossLight);
+    boss.visible=false; boss.userData.health=3; boss.userData.active=false; boss.userData.lastAttack=0; boss.userData.stunnedUntil=0;
+
     // collectibles
     const shards=[];
     for(let i=0;i<3;i++){
@@ -194,6 +204,12 @@
       state.pulseReady=false;
       const wave=new THREE.Mesh(new THREE.TorusGeometry(.7,.09,8,48),new THREE.MeshBasicMaterial({color:0x8ef7ff,transparent:true,opacity:.95}));
       wave.rotation.x=Math.PI/2; wave.position.copy(player.position); wave.position.y=.18; scene.add(wave); pulseWaves.push({mesh:wave,age:0});
+      if(boss.userData.active&&boss.userData.health>0&&boss.position.distanceTo(player.position)<7){
+        boss.userData.health--; boss.userData.stunnedUntil=clock.elapsedTime+2.2;
+        document.querySelector('#bossFill').style.width=(boss.userData.health/3*100)+'%';
+        notify(boss.userData.health>0?'ACERTOU O COLOSSO! Mais um PULSO!':'COLOSSO DESTRUÍDO! O PORTAL ESTÁ LIVRE!');
+        if(boss.userData.health<=0){boss.userData.active=false;boss.visible=false;document.querySelector('#bossHud').style.opacity='0';document.querySelector('#objectiveText').textContent='O Colosso caiu. Alcance o portal.';}
+      }
       const enemyDistance=sentinel.position.distanceTo(player.position);
       if(sentinel.userData.awake&&enemyDistance<8){sentinel.userData.stunnedUntil=clock.elapsedTime+3.8;notify('SENTINELA ATORDOADA! CORRA!');}
       else notify('PULSO DE REALIDADE — EXPANSÃO!');
@@ -219,9 +235,24 @@
     function animate(){
       requestAnimationFrame(animate);
       const dt=Math.min(clock.getDelta(),.033), t=clock.elapsedTime;
-      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='Portal estabilizado! Alcance o núcleo.';notify('PORTAL ESTABILIZADO! Encontre o núcleo.');}}}});
+      shards.forEach((s,i)=>{if(!s.userData.collected){s.rotation.y+=dt*1.3;s.position.y=s.userData.baseY+Math.sin(t*2+i)*.22;if(state.started&&player.position.distanceTo(s.position)<1.35){s.userData.collected=true;scene.remove(s);state.shards++;document.querySelector('#counter').textContent='FRAGMENTOS '+state.shards+' / 3';document.querySelector('#progressFill').style.width=(state.shards/3*100)+'%';notify('Fragmento recuperado: '+state.shards+'/3');if(state.shards===3){document.querySelector('#objectiveText').textContent='O COLOSSO despertou! Use o PULSO três vezes.';boss.visible=true;boss.userData.active=true;document.querySelector('#bossHud').style.opacity='1';notify('⚠ O COLOSSO DO VAZIO DESPERTOU!');}}}});
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
+      if(boss.visible){
+        boss.rotation.y+=dt*.32; bossHalo.rotation.z+=dt*.7;
+        boss.position.y=2.2+Math.sin(t*1.8)*.35;
+        const stunned=t<boss.userData.stunnedUntil;
+        bossCore.material.emissiveIntensity=stunned?.25:1.5+Math.sin(t*5)*.5;
+        if(boss.userData.active&&!stunned){
+          const dx=player.position.x-boss.position.x,dz=player.position.z-boss.position.z,d=Math.hypot(dx,dz)||1;
+          boss.rotation.y=Math.atan2(dx,dz);
+          if(t-boss.userData.lastAttack>3.4){
+            boss.userData.lastAttack=t;
+            if(d<6){player.position.x+=(dx/d)*1.25;player.position.z+=(dz/d)*1.25;notify('GOLPE DO COLOSSO! Mantenha distância!');}
+            else notify('O COLOSSO CARREGA UM ATAQUE...');
+          }
+        }
+      }
       // A criatura desperta após alguns segundos e persegue o jogador.
       if(state.started&&t>11) sentinel.userData.awake=true;
       if(sentinel.userData.awake){
@@ -259,7 +290,7 @@
         body.position.y=.95+Math.sin(t*10)*(Math.abs(state.vx)+Math.abs(state.vz)>.5?.045:0);
         const target=new THREE.Vector3(player.position.x,player.position.y+4.2,player.position.z+8.5);
         camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+1,player.position.z-2.5);
-        if(state.shards===3&&!state.completed&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2){state.completed=true;document.querySelector('#objectiveText').textContent='Dimensão 02 desbloqueada. Você venceu a primeira ruptura!';document.querySelector('#hint').textContent='Primeira ruptura concluída. Novas dimensões em breve.';notify('✦ RUPTURA CONCLUÍDA — DIMENSÃO 02 DESBLOQUEADA ✦');}
+        if(state.shards===3&&!boss.userData.active&&boss.userData.health<=0&&!state.completed&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2){state.completed=true;document.querySelector('#objectiveText').textContent='Dimensão 02 desbloqueada. Você venceu a primeira ruptura!';document.querySelector('#hint').textContent='Primeira ruptura concluída. Novas dimensões em breve.';notify('✦ RUPTURA CONCLUÍDA — DIMENSÃO 02 DESBLOQUEADA ✦');}
       }else{camera.position.lerp(new THREE.Vector3(0,7,16),.025);camera.lookAt(0,1,0);}
       renderer.render(scene,camera);
     }
