@@ -176,7 +176,7 @@
     sentinel.userData.stunnedUntil=0; sentinel.userData.awake=false; sentinel.userData.hitAt=0;
 
     // COLOSSO DO VAZIO: guardião da passagem para a próxima dimensão.
-    const boss=new THREE.Group(); boss.position.set(0,2.2,-5.7); scene.add(boss);
+    const boss=new THREE.Group(); boss.position.set(0,3.15,-2.9); boss.scale.setScalar(1.35); boss.rotation.y=Math.PI; scene.add(boss);
     const bossCore=new THREE.Mesh(new THREE.IcosahedronGeometry(1.65,1),new THREE.MeshStandardMaterial({color:0x20102e,metalness:.65,roughness:.22,emissive:0x510b75,emissiveIntensity:1.5})); boss.add(bossCore);
     const bossEye=new THREE.Mesh(new THREE.SphereGeometry(.62,24,18),new THREE.MeshStandardMaterial({color:0xff3b78,emissive:0xff174f,emissiveIntensity:2.4,metalness:.25,roughness:.15})); bossEye.position.set(0,.12,-1.48); boss.add(bossEye);
     const bossHalo=new THREE.Mesh(new THREE.TorusGeometry(2.35,.12,12,64),new THREE.MeshBasicMaterial({color:0xa65bff,transparent:true,opacity:.9})); bossHalo.rotation.x=.45; boss.add(bossHalo);
@@ -239,7 +239,7 @@
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
       if(boss.visible){
-        boss.rotation.y+=dt*.32; bossHalo.rotation.z+=dt*.7;
+        boss.rotation.y=Math.PI+Math.sin(t*.35)*.12; bossHalo.rotation.z+=dt*.7;
         boss.position.y=2.2+Math.sin(t*1.8)*.35;
         const stunned=t<boss.userData.stunnedUntil;
         bossCore.material.emissiveIntensity=stunned?.25:1.5+Math.sin(t*5)*.5;
