@@ -38,6 +38,18 @@
     #dimensionalFlash.active { opacity:1; animation:dimensionalPulse .22s infinite alternate; }
     #riftAlert { position:fixed; z-index:30; left:50%; top:40%; transform:translate(-50%,-50%) scale(.8); width:min(90%,420px); padding:18px 14px; text-align:center; font-weight:1000; font-size:clamp(19px,5vw,30px); letter-spacing:.08em; color:#fff; background:linear-gradient(90deg,#4b087dcc,#c01665ee,#4b087dcc); border:3px solid #ff8be9; border-radius:18px; text-shadow:0 0 18px #ffb4f5; box-shadow:0 0 35px #ff2fbd,inset 0 0 25px #ff9ae8; opacity:0; pointer-events:none; transition:opacity .12s,transform .12s; }
     #riftAlert.active { opacity:1; transform:translate(-50%,-50%) scale(1); animation:riftAlertPulse .2s infinite alternate; }
+    #riftCracks,#riftExplosion,#riftWave { position:fixed; inset:0; z-index:18; pointer-events:none; opacity:0; }
+    #riftCracks { background-size:100% 100%; background-repeat:no-repeat; }
+    #riftCracks.active { animation:crackFlash 1.55s ease-out forwards; }
+    @keyframes crackFlash { 0%{opacity:0;filter:brightness(2)} 12%{opacity:1} 55%{opacity:.9} 100%{opacity:0} }
+    #riftExplosion { background:radial-gradient(circle at 50% 48%,#ffffff 0%,#fff3ff 5%,#ff38c8 13%,#9b20ff99 30%,#27004c66 55%,transparent 72%); mix-blend-mode:screen; }
+    #riftExplosion.active { animation:explosionFlash .62s ease-out forwards; }
+    @keyframes explosionFlash { 0%{opacity:0;transform:scale(.15)} 18%{opacity:1} 48%{opacity:.9;transform:scale(1.35)} 100%{opacity:0;transform:scale(1.8)} }
+    #riftWave { inset:auto auto auto 50%; top:50%; width:170vw; height:25vh; transform:translate(-150%,-50%) rotate(-17deg); background:linear-gradient(180deg,transparent 0%,#ff9afc33 22%,#fff 43%,#ff36d5 50%,#a31cffaa 62%,transparent 100%); filter:drop-shadow(0 0 18px #ff32db) drop-shadow(0 0 42px #9a3bff); }
+    #riftWave.active { animation:screenWave .72s cubic-bezier(.12,.7,.2,1) forwards; }
+    @keyframes screenWave { 0%{opacity:0;transform:translate(-150%,-50%) rotate(-17deg)} 12%{opacity:1} 100%{opacity:0;transform:translate(55%,-50%) rotate(-17deg)} }
+    #game.screen-shake,.hud.screen-shake { animation:violentShake .48s linear; }
+    @keyframes violentShake { 0%,100%{transform:translate(0,0)} 10%{transform:translate(-9px,5px)} 20%{transform:translate(8px,-6px)} 30%{transform:translate(-7px,-4px)} 40%{transform:translate(8px,5px)} 50%{transform:translate(-6px,3px)} 60%{transform:translate(5px,-5px)} 70%{transform:translate(-4px,4px)} 80%{transform:translate(3px,-2px)} 90%{transform:translate(-2px,2px)} }
     @keyframes riftAlertPulse { from {filter:brightness(1)} to {filter:brightness(1.8)} }
     @keyframes dimensionalPulse { from {filter:hue-rotate(0deg);box-shadow:inset 0 0 45px #b52cff,0 0 18px #d34cff} to {filter:hue-rotate(55deg);box-shadow:inset 0 0 110px #ff2f9a,0 0 48px #ff2f9a} }
     .world-event { position:fixed; inset:0; pointer-events:none; opacity:0; border:5px solid #bd7bff; box-shadow:inset 0 0 90px #a33cff88; transition:opacity .25s; }
@@ -82,6 +94,9 @@
   <div id="toast"></div>
   <div id="dimensionalFlash"></div>
   <div id="riftAlert">FENDA DIMENSIONAL! DESVIE!</div>
+  <div id="riftCracks" aria-hidden="true"></div>
+  <div id="riftExplosion" aria-hidden="true"></div>
+  <div id="riftWave" aria-hidden="true"></div>
   <div class="world-event" id="worldEvent"></div>
   <div id="eventLabel">A REALIDADE ESTÁ RACHANDO</div>
   <div id="start">
@@ -208,6 +223,7 @@
     const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0, completed:false, pulseReady:true, eventActive:false};
     const pulseWaves=[];
     const dimensionalWaves=[];
+    const riftCrackArt="url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 700'%3E%3Cg fill='none' stroke='%23ffd9ff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' filter='drop-shadow(0 0 8px %23ff22dd)'%3E%3Cpath d='M500 350 430 270 452 205 375 150 390 70 M430 270 350 300 280 250 190 265 120 210 M350 300 310 390 225 420 190 500 95 545 M452 205 510 155 500 90 565 35 M500 350 570 285 650 300 710 230 820 220 890 150 M570 285 600 380 690 410 720 500 820 545 M500 350 470 430 510 500 470 590 500 680 M600 380 680 350 760 380 850 340 940 380'/%3E%3C/g%3E%3Cg fill='none' stroke='%23b82cff' stroke-width='12' opacity='.8'%3E%3Cpath d='M500 350 430 270 452 205 375 150 390 70 M500 350 570 285 650 300 710 230 820 220 890 150 M500 350 470 430 510 500 470 590'/%3E%3C/g%3E%3C/svg%3E\")";
     const riftWarnings=[];
     let nextDimensionalAttack=0;
     let cameraShake=0, dimensionalFlashUntil=0, riftAlertUntil=0;
@@ -279,6 +295,7 @@
           document.querySelector('#dimensionalFlash').classList.add('active');
           const alert=document.querySelector('#riftAlert');alert.textContent=rage===2?'FÚRIA DIMENSIONAL! DESVIE AGORA!':'FENDA DIMENSIONAL! SAIA DO CÍRCULO!';
           alert.classList.add('active');
+          const cracks=document.querySelector('#riftCracks');cracks.style.backgroundImage=riftCrackArt;cracks.classList.remove('active');void cracks.offsetWidth;cracks.classList.add('active');
           notify('ATAQUE DIMENSIONAL DO COLOSSO!');
 
         }
@@ -387,7 +404,13 @@
           const blast=new THREE.Mesh(new THREE.TorusGeometry(1.2,.24,10,48),new THREE.MeshBasicMaterial({color:0xff2f9a,transparent:true,opacity:1}));
           blast.rotation.x=Math.PI/2;blast.position.set(r.x,.24,r.z);scene.add(blast);
           dimensionalWaves.push({mesh:blast,x:r.x,z:r.z,age:0,hit:false,max:3.2});
-          cameraShake=.55;dimensionalFlashUntil=t+.45;
+          cameraShake=1.35;dimensionalFlashUntil=t+.7;
+          const explosion=document.querySelector('#riftExplosion'),screenWave=document.querySelector('#riftWave');
+          explosion.classList.remove('active');screenWave.classList.remove('active');void explosion.offsetWidth;void screenWave.offsetWidth;
+          explosion.classList.add('active');screenWave.classList.add('active');
+          const gameHost=document.querySelector('#game'),hud=document.querySelector('.hud');
+          gameHost.classList.remove('screen-shake');hud.classList.remove('screen-shake');void gameHost.offsetWidth;
+          gameHost.classList.add('screen-shake');hud.classList.add('screen-shake');
           scene.remove(r.mesh,r.core);r.mesh.geometry.dispose();r.mesh.material.dispose();r.core.geometry.dispose();r.core.material.dispose();riftWarnings.splice(i,1);
         }
       }
