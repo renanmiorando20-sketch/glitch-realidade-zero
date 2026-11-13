@@ -34,13 +34,13 @@
     #jump { background:linear-gradient(145deg,#276b82ee,#142d50ee); }
     #toast { position:fixed; left:50%; top:25%; transform:translate(-50%,-10px); opacity:0; transition:.35s; background:#100e2be8; border:1px solid #b8a5ff88; border-radius:14px; padding:12px 18px; font-size:13px; text-align:center; pointer-events:none; box-shadow:0 10px 40px #0008; }
     #toast.show { opacity:1; transform:translate(-50%,0); }
-    #dimensionalFlash { position:fixed; inset:0; z-index:8; pointer-events:none; opacity:0; border:8px solid #d34cff; box-shadow:inset 0 0 65px #b52cff,0 0 35px #d34cff; background:radial-gradient(ellipse at center,transparent 35%,#8d20ff22 100%); transition:opacity .12s; }
-    #dimensionalFlash.active { opacity:1; animation:dimensionalPulse .22s infinite alternate; }
-    #riftAlert { position:fixed; z-index:30; left:50%; top:40%; transform:translate(-50%,-50%) scale(.8); width:min(90%,420px); padding:18px 14px; text-align:center; font-weight:1000; font-size:clamp(19px,5vw,30px); letter-spacing:.08em; color:#fff; background:linear-gradient(90deg,#4b087dcc,#c01665ee,#4b087dcc); border:3px solid #ff8be9; border-radius:18px; text-shadow:0 0 18px #ffb4f5; box-shadow:0 0 35px #ff2fbd,inset 0 0 25px #ff9ae8; opacity:0; pointer-events:none; transition:opacity .12s,transform .12s; }
+    #dimensionalFlash { position:fixed; inset:0; z-index:84; pointer-events:none; opacity:0; border:10px solid #fff; box-shadow:inset 0 0 90px #d52cff,0 0 55px #fff; background:radial-gradient(circle at center,#fff 0%,#fff 9%,#ffb8f4 20%,#a52bff99 48%,#180024 100%); mix-blend-mode:screen; }
+    #dimensionalFlash.active { animation:impactFlash .48s ease-out forwards; }
+    @keyframes impactFlash { 0%{opacity:0;filter:brightness(1)} 12%{opacity:1;filter:brightness(2.8)} 38%{opacity:.96;filter:brightness(1.8)} 100%{opacity:0;filter:brightness(1)} }
+    #riftAlert { position:fixed; z-index:90; left:50%; top:16%; transform:translate(-50%,-50%) scale(.92); width:max-content; max-width:78%; padding:8px 11px; text-align:center; font-weight:900; font-size:clamp(11px,3.1vw,15px); letter-spacing:.045em; color:#fff; background:linear-gradient(90deg,#31084ddd,#a81768ee,#31084ddd); border:1.5px solid #ff8be9; border-radius:11px; text-shadow:0 0 10px #ffb4f5; box-shadow:0 0 18px #ff2fbd,inset 0 0 12px #ff9ae8; opacity:0; pointer-events:none; transition:opacity .12s,transform .12s; }
     #riftAlert.active { opacity:1; transform:translate(-50%,-50%) scale(1); animation:riftAlertPulse .2s infinite alternate; }
-    #riftCracks,#riftExplosion,#riftWave { position:fixed; inset:0; z-index:18; pointer-events:none; opacity:0; }
-    #riftCracks { background-size:100% 100%; background-repeat:no-repeat; }
-    #riftCracks.active { animation:crackFlash 1.55s ease-out forwards; }
+    #riftCracks { display:none !important; }
+    #riftExplosion,#riftWave { position:fixed; inset:0; z-index:85; pointer-events:none; opacity:0; }
     @keyframes crackFlash { 0%{opacity:0;filter:brightness(2)} 12%{opacity:1} 55%{opacity:.9} 100%{opacity:0} }
     #riftExplosion { background:radial-gradient(circle at 50% 48%,#ffffff 0%,#fff3ff 5%,#ff38c8 13%,#9b20ff99 30%,#27004c66 55%,transparent 72%); mix-blend-mode:screen; }
     #riftExplosion.active { animation:explosionFlash .62s ease-out forwards; }
@@ -48,8 +48,9 @@
     #riftWave { inset:auto auto auto 50%; top:50%; width:170vw; height:25vh; transform:translate(-150%,-50%) rotate(-17deg); background:linear-gradient(180deg,transparent 0%,#ff9afc33 22%,#fff 43%,#ff36d5 50%,#a31cffaa 62%,transparent 100%); filter:drop-shadow(0 0 18px #ff32db) drop-shadow(0 0 42px #9a3bff); }
     #riftWave.active { animation:screenWave .72s cubic-bezier(.12,.7,.2,1) forwards; }
     @keyframes screenWave { 0%{opacity:0;transform:translate(-150%,-50%) rotate(-17deg)} 12%{opacity:1} 100%{opacity:0;transform:translate(55%,-50%) rotate(-17deg)} }
-    #bossBlackout,#bossRoar { position:fixed;inset:0;pointer-events:none;opacity:0;z-index:17; }
-    #bossBlackout { background:radial-gradient(circle at 50% 45%,#10051dcc 0%,#020108 78%); }
+    #bossBlackout,#bossRoar { position:fixed;inset:0;pointer-events:none;opacity:0;z-index:70; }
+    #bossBlackout { background:#000; }
+    #bossRoar { z-index:72; }
     #bossBlackout.active { animation:blackoutHit 1.35s ease-out forwards; }
     @keyframes blackoutHit { 0%{opacity:0} 18%{opacity:.94} 72%{opacity:.88} 100%{opacity:0} }
     #bossRoar { background:repeating-linear-gradient(0deg,transparent 0 8px,#ff38d522 9px 11px),radial-gradient(ellipse at center,transparent 30%,#c000ff55 100%);mix-blend-mode:screen; }
@@ -301,10 +302,10 @@
           warningCore.position.set(player.position.x,1.9,player.position.z);
           scene.add(warning,warningCore);
           const crackPoints=[];
-          for(let ray=0;ray<12;ray++){const a=ray/12*Math.PI*2,len=1.2+(ray%3)*.48,bend=(ray%2?.18:-.18);crackPoints.push(new THREE.Vector3(0,.075,0),new THREE.Vector3(Math.cos(a)*len,.49,Math.sin(a)*len),new THREE.Vector3(Math.cos(a)*len,.49,Math.sin(a)*len),new THREE.Vector3(Math.cos(a+.12+bend)*(len+.55),.075,Math.sin(a+.12+bend)*(len+.55)));}
+          for(let ray=0;ray<12;ray++){const a=ray/12*Math.PI*2,len=1.2+(ray%3)*.48,bend=(ray%2?.18:-.18),x1=Math.cos(a)*len,z1=Math.sin(a)*len,x2=Math.cos(a+.12+bend)*(len+.55),z2=Math.sin(a+.12+bend)*(len+.55);crackPoints.push(new THREE.Vector3(0,.006,0),new THREE.Vector3(x1,.006,z1),new THREE.Vector3(x1,.006,z1),new THREE.Vector3(x2,.006,z2));}
           const crackGeo=new THREE.BufferGeometry().setFromPoints(crackPoints);
-          const crackMat=new THREE.LineBasicMaterial({color:0xff7be9,transparent:true,opacity:.95});
-          const groundCracks=new THREE.LineSegments(crackGeo,crackMat);groundCracks.position.set(player.position.x,.08,player.position.z);scene.add(groundCracks);
+          const crackMat=new THREE.LineBasicMaterial({color:0xffb8f4,transparent:true,opacity:1,depthWrite:false});
+          const groundCracks=new THREE.LineSegments(crackGeo,crackMat);groundCracks.position.set(player.position.x,.455,player.position.z);groundCracks.renderOrder=8;scene.add(groundCracks);
           riftWarnings.push({mesh:warning,core:warningCore,cracks:groundCracks,x:player.position.x,z:player.position.z,age:0});
           dimensionalFlashUntil=t+1.5; riftAlertUntil=t+1.5;
           blackoutUntil=t+1.35;roarUntil=t+1.1;
@@ -313,10 +314,8 @@
           blackout.classList.add('active');roar.classList.add('active');
           cameraShake=Math.max(cameraShake,.7);
           key.intensity=.22;glow.intensity=3.5;bossLight.intensity=42;
-          document.querySelector('#dimensionalFlash').classList.add('active');
           const alert=document.querySelector('#riftAlert');alert.textContent=rage===2?'FÚRIA DIMENSIONAL! DESVIE AGORA!':'FENDA DIMENSIONAL! SAIA DO CÍRCULO!';
           alert.classList.add('active');
-          const cracks=document.querySelector('#riftCracks');cracks.style.backgroundImage=riftCrackArt;cracks.classList.remove('active');void cracks.offsetWidth;cracks.classList.add('active');
           notify('ATAQUE DIMENSIONAL DO COLOSSO!');
 
         }
@@ -426,7 +425,8 @@
           const blast=new THREE.Mesh(new THREE.TorusGeometry(1.2,.24,10,48),new THREE.MeshBasicMaterial({color:0xff2f9a,transparent:true,opacity:1}));
           blast.rotation.x=Math.PI/2;blast.position.set(r.x,.24,r.z);scene.add(blast);
           dimensionalWaves.push({mesh:blast,x:r.x,z:r.z,age:0,hit:false,max:3.2});
-          cameraShake=1.35;dimensionalFlashUntil=t+.7;
+          cameraShake=1.35;dimensionalFlashUntil=t+.55;
+          const flash=document.querySelector('#dimensionalFlash');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');
           const explosion=document.querySelector('#riftExplosion'),screenWave=document.querySelector('#riftWave');
           explosion.classList.remove('active');screenWave.classList.remove('active');void explosion.offsetWidth;void screenWave.offsetWidth;
           explosion.classList.add('active');screenWave.classList.add('active');
