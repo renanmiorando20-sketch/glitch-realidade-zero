@@ -34,6 +34,9 @@
     #jump { background:linear-gradient(145deg,#276b82ee,#142d50ee); }
     #toast { position:fixed; left:50%; top:25%; transform:translate(-50%,-10px); opacity:0; transition:.35s; background:#100e2be8; border:1px solid #b8a5ff88; border-radius:14px; padding:12px 18px; font-size:13px; text-align:center; pointer-events:none; box-shadow:0 10px 40px #0008; }
     #toast.show { opacity:1; transform:translate(-50%,0); }
+    #dimensionalFlash { position:fixed; inset:0; z-index:8; pointer-events:none; opacity:0; border:8px solid #d34cff; box-shadow:inset 0 0 65px #b52cff,0 0 35px #d34cff; background:radial-gradient(ellipse at center,transparent 35%,#8d20ff22 100%); transition:opacity .12s; }
+    #dimensionalFlash.active { opacity:1; animation:dimensionalPulse .22s infinite alternate; }
+    @keyframes dimensionalPulse { from {filter:hue-rotate(0deg);box-shadow:inset 0 0 45px #b52cff,0 0 18px #d34cff} to {filter:hue-rotate(55deg);box-shadow:inset 0 0 110px #ff2f9a,0 0 48px #ff2f9a} }
     .world-event { position:fixed; inset:0; pointer-events:none; opacity:0; border:5px solid #bd7bff; box-shadow:inset 0 0 90px #a33cff88; transition:opacity .25s; }
     .world-event.active { opacity:1; animation:riftFlash 1.1s ease-in-out infinite alternate; }
     @keyframes riftFlash { from {filter:hue-rotate(0deg);box-shadow:inset 0 0 35px #a33cff55} to {filter:hue-rotate(70deg);box-shadow:inset 0 0 110px #42eaff99} }
@@ -74,6 +77,7 @@
     </div>
   </div>
   <div id="toast"></div>
+  <div id="dimensionalFlash"></div>
   <div class="world-event" id="worldEvent"></div>
   <div id="eventLabel">A REALIDADE ESTÁ RACHANDO</div>
   <div id="start">
@@ -202,7 +206,7 @@
     const dimensionalWaves=[];
     const riftWarnings=[];
     let nextDimensionalAttack=0;
-    let cameraShake=0;
+    let cameraShake=0, dimensionalFlashUntil=0;
     function firePulse(){
       if(!state.started||!state.pulseReady)return;
       state.pulseReady=false;
@@ -260,12 +264,17 @@
           waveMesh.position.set(boss.position.x,.22,boss.position.z);
           scene.add(waveMesh);
           dimensionalWaves.push({mesh:waveMesh,x:boss.position.x,z:boss.position.z,age:0,hit:false,max:Math.min(10,Math.hypot(player.position.x-boss.position.x,player.position.z-boss.position.z)+3)});
-          const warning=new THREE.Mesh(new THREE.TorusGeometry(.85,.075,6,40),new THREE.MeshBasicMaterial({color:0xff3d8b,transparent:true,opacity:.9}));
+          const warning=new THREE.Mesh(new THREE.TorusGeometry(1.05,.13,8,48),new THREE.MeshBasicMaterial({color:0xff2f9a,transparent:true,opacity:1}));
           warning.rotation.x=Math.PI/2;
-          warning.position.set(player.position.x,.16,player.position.z);
-          scene.add(warning);
-          riftWarnings.push({mesh:warning,x:player.position.x,z:player.position.z,age:0});
-          notify(rage===2?'FÚRIA DIMENSIONAL! SAIA DA FENDA!':'ONDAS DO VAZIO! SALTE OU DESVIE!');
+          warning.position.set(player.position.x,.2,player.position.z);
+          const warningCore=new THREE.Mesh(new THREE.CylinderGeometry(.12,.42,3.6,12,1,true),new THREE.MeshBasicMaterial({color:0xc23cff,transparent:true,opacity:.72,side:THREE.DoubleSide,emissive:0x6b00ff}));
+          warningCore.position.set(player.position.x,1.9,player.position.z);
+          scene.add(warning,warningCore);
+          riftWarnings.push({mesh:warning,core:warningCore,x:player.position.x,z:player.position.z,age:0});
+          dimensionalFlashUntil=t+1.35;
+          document.querySelector('#dimensionalFlash').classList.add('active');
+          notify(rage===2?'FÚRIA DIMENSIONAL! SAIA DA FENDA!':'FENDA DETECTADA! SAIA DO CÍRCULO!');
+SIONAL! SAIA DA FENDA!':'ONDAS DO VAZIO! SALTE OU DESVIE!');
         }
         // IA 7.0 — caça equilibrada, investida telegrafada e fúria por vida.
         if(state.started&&state.shards>=3&&boss.visible&&boss.userData.health>0){
@@ -364,15 +373,19 @@
       // Fendas: o círculo pisca antes de explodir, permitindo sair do local marcado.
       for(let i=riftWarnings.length-1;i>=0;i--){
         const r=riftWarnings[i];r.age+=dt;
-        r.mesh.material.opacity=.35+Math.abs(Math.sin(r.age*13))*.55;
-        r.mesh.scale.setScalar(1+r.age*.18);
+        r.mesh.material.opacity=.55+Math.abs(Math.sin(r.age*18))*.45;
+        r.mesh.scale.setScalar(1+r.age*.75);
+        r.core.material.opacity=.35+Math.abs(Math.sin(r.age*16))*.55;
+        r.core.scale.y=1+r.age*.35;
         if(r.age>.95){
-          const blast=new THREE.Mesh(new THREE.TorusGeometry(1.05,.16,8,40),new THREE.MeshBasicMaterial({color:0xff3d8b,transparent:true,opacity:.95}));
-          blast.rotation.x=Math.PI/2;blast.position.set(r.x,.2,r.z);scene.add(blast);
-          dimensionalWaves.push({mesh:blast,x:r.x,z:r.z,age:0,hit:false,max:2.3});
-          scene.remove(r.mesh);r.mesh.geometry.dispose();r.mesh.material.dispose();riftWarnings.splice(i,1);
+          const blast=new THREE.Mesh(new THREE.TorusGeometry(1.2,.24,10,48),new THREE.MeshBasicMaterial({color:0xff2f9a,transparent:true,opacity:1}));
+          blast.rotation.x=Math.PI/2;blast.position.set(r.x,.24,r.z);scene.add(blast);
+          dimensionalWaves.push({mesh:blast,x:r.x,z:r.z,age:0,hit:false,max:3.2});
+          cameraShake=.55;dimensionalFlashUntil=t+.45;
+          scene.remove(r.mesh,r.core);r.mesh.geometry.dispose();r.mesh.material.dispose();r.core.geometry.dispose();r.core.material.dispose();riftWarnings.splice(i,1);
         }
       }
+      if(t>dimensionalFlashUntil)document.querySelector('#dimensionalFlash').classList.remove('active');
       // Evento global: a realidade muda de frequência por alguns segundos.
       if(state.started&&t>nextEvent&&!state.eventActive){state.eventActive=true;eventEnd=t+7;nextEvent=t+34;document.querySelector('#worldEvent').classList.add('active');document.querySelector('#eventLabel').classList.add('show');notify('⚠ ANOMALIA DIMENSIONAL — A SENTINELA FICOU MAIS RÁPIDA!');}
       if(state.eventActive&&t>eventEnd){state.eventActive=false;document.querySelector('#worldEvent').classList.remove('active');document.querySelector('#eventLabel').classList.remove('show');notify('A realidade voltou a estabilizar... por enquanto.');}
