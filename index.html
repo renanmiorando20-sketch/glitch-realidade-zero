@@ -301,7 +301,7 @@
           warningCore.position.set(player.position.x,1.9,player.position.z);
           scene.add(warning,warningCore);
           const crackPoints=[];
-          for(let ray=0;ray<12;ray++){const a=ray/12*Math.PI*2,len=1.2+(ray%3)*.48,bend=(ray%2?.18:-.18);crackPoints.push(new THREE.Vector3(0,.075,0),new THREE.Vector3(Math.cos(a)*len,.075,Math.sin(a)*len),new THREE.Vector3(Math.cos(a)*len,.075,Math.sin(a)*len),new THREE.Vector3(Math.cos(a+.12+bend)*(len+.55),.075,Math.sin(a+.12+bend)*(len+.55)));}
+          for(let ray=0;ray<12;ray++){const a=ray/12*Math.PI*2,len=1.2+(ray%3)*.48,bend=(ray%2?.18:-.18);crackPoints.push(new THREE.Vector3(0,.075,0),new THREE.Vector3(Math.cos(a)*len,.49,Math.sin(a)*len),new THREE.Vector3(Math.cos(a)*len,.49,Math.sin(a)*len),new THREE.Vector3(Math.cos(a+.12+bend)*(len+.55),.075,Math.sin(a+.12+bend)*(len+.55)));}
           const crackGeo=new THREE.BufferGeometry().setFromPoints(crackPoints);
           const crackMat=new THREE.LineBasicMaterial({color:0xff7be9,transparent:true,opacity:.95});
           const groundCracks=new THREE.LineSegments(crackGeo,crackMat);groundCracks.position.set(player.position.x,.08,player.position.z);scene.add(groundCracks);
