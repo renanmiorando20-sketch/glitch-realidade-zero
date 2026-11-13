@@ -48,6 +48,13 @@
     #riftWave { inset:auto auto auto 50%; top:50%; width:170vw; height:25vh; transform:translate(-150%,-50%) rotate(-17deg); background:linear-gradient(180deg,transparent 0%,#ff9afc33 22%,#fff 43%,#ff36d5 50%,#a31cffaa 62%,transparent 100%); filter:drop-shadow(0 0 18px #ff32db) drop-shadow(0 0 42px #9a3bff); }
     #riftWave.active { animation:screenWave .72s cubic-bezier(.12,.7,.2,1) forwards; }
     @keyframes screenWave { 0%{opacity:0;transform:translate(-150%,-50%) rotate(-17deg)} 12%{opacity:1} 100%{opacity:0;transform:translate(55%,-50%) rotate(-17deg)} }
+    #bossBlackout,#bossRoar { position:fixed;inset:0;pointer-events:none;opacity:0;z-index:17; }
+    #bossBlackout { background:radial-gradient(circle at 50% 45%,#10051dcc 0%,#020108 78%); }
+    #bossBlackout.active { animation:blackoutHit 1.35s ease-out forwards; }
+    @keyframes blackoutHit { 0%{opacity:0} 18%{opacity:.94} 72%{opacity:.88} 100%{opacity:0} }
+    #bossRoar { background:repeating-linear-gradient(0deg,transparent 0 8px,#ff38d522 9px 11px),radial-gradient(ellipse at center,transparent 30%,#c000ff55 100%);mix-blend-mode:screen; }
+    #bossRoar.active { animation:roarDistort 1.1s ease-out forwards; }
+    @keyframes roarDistort { 0%{opacity:0;transform:scale(1);filter:blur(0)} 18%{opacity:1;transform:scale(1.035) skewX(2deg);filter:blur(2px)} 45%{opacity:.85;transform:scale(.985) skewX(-2deg);filter:blur(1px)} 100%{opacity:0;transform:scale(1);filter:blur(0)} }
     #game.screen-shake,.hud.screen-shake { animation:violentShake .48s linear; }
     @keyframes violentShake { 0%,100%{transform:translate(0,0)} 10%{transform:translate(-9px,5px)} 20%{transform:translate(8px,-6px)} 30%{transform:translate(-7px,-4px)} 40%{transform:translate(8px,5px)} 50%{transform:translate(-6px,3px)} 60%{transform:translate(5px,-5px)} 70%{transform:translate(-4px,4px)} 80%{transform:translate(3px,-2px)} 90%{transform:translate(-2px,2px)} }
     @keyframes riftAlertPulse { from {filter:brightness(1)} to {filter:brightness(1.8)} }
@@ -93,6 +100,8 @@
   </div>
   <div id="toast"></div>
   <div id="dimensionalFlash"></div>
+  <div id="bossBlackout"></div>
+  <div id="bossRoar"></div>
   <div id="riftAlert">FENDA DIMENSIONAL! DESVIE!</div>
   <div id="riftCracks" aria-hidden="true"></div>
   <div id="riftExplosion" aria-hidden="true"></div>
@@ -227,6 +236,7 @@
     const riftWarnings=[];
     let nextDimensionalAttack=0;
     let cameraShake=0, dimensionalFlashUntil=0, riftAlertUntil=0;
+    let blackoutUntil=0, roarUntil=0;
     function firePulse(){
       if(!state.started||!state.pulseReady)return;
       state.pulseReady=false;
@@ -290,8 +300,19 @@
           const warningCore=new THREE.Mesh(new THREE.CylinderGeometry(.12,.42,3.6,12,1,true),new THREE.MeshBasicMaterial({color:0xc23cff,transparent:true,opacity:.72,side:THREE.DoubleSide,emissive:0x6b00ff}));
           warningCore.position.set(player.position.x,1.9,player.position.z);
           scene.add(warning,warningCore);
-          riftWarnings.push({mesh:warning,core:warningCore,x:player.position.x,z:player.position.z,age:0});
+          const crackPoints=[];
+          for(let ray=0;ray<12;ray++){const a=ray/12*Math.PI*2,len=1.2+(ray%3)*.48,bend=(ray%2?.18:-.18);crackPoints.push(new THREE.Vector3(0,.075,0),new THREE.Vector3(Math.cos(a)*len,.075,Math.sin(a)*len),new THREE.Vector3(Math.cos(a)*len,.075,Math.sin(a)*len),new THREE.Vector3(Math.cos(a+.12+bend)*(len+.55),.075,Math.sin(a+.12+bend)*(len+.55)));}
+          const crackGeo=new THREE.BufferGeometry().setFromPoints(crackPoints);
+          const crackMat=new THREE.LineBasicMaterial({color:0xff7be9,transparent:true,opacity:.95});
+          const groundCracks=new THREE.LineSegments(crackGeo,crackMat);groundCracks.position.set(player.position.x,.08,player.position.z);scene.add(groundCracks);
+          riftWarnings.push({mesh:warning,core:warningCore,cracks:groundCracks,x:player.position.x,z:player.position.z,age:0});
           dimensionalFlashUntil=t+1.5; riftAlertUntil=t+1.5;
+          blackoutUntil=t+1.35;roarUntil=t+1.1;
+          const blackout=document.querySelector('#bossBlackout'),roar=document.querySelector('#bossRoar');
+          blackout.classList.remove('active');roar.classList.remove('active');void blackout.offsetWidth;
+          blackout.classList.add('active');roar.classList.add('active');
+          cameraShake=Math.max(cameraShake,.7);
+          key.intensity=.22;glow.intensity=3.5;bossLight.intensity=42;
           document.querySelector('#dimensionalFlash').classList.add('active');
           const alert=document.querySelector('#riftAlert');alert.textContent=rage===2?'FÚRIA DIMENSIONAL! DESVIE AGORA!':'FENDA DIMENSIONAL! SAIA DO CÍRCULO!';
           alert.classList.add('active');
@@ -400,6 +421,7 @@
         r.mesh.scale.setScalar(1+r.age*.75);
         r.core.material.opacity=.35+Math.abs(Math.sin(r.age*16))*.55;
         r.core.scale.y=1+r.age*.35;
+        r.cracks.material.opacity=Math.max(0,.95-r.age*.42);
         if(r.age>.95){
           const blast=new THREE.Mesh(new THREE.TorusGeometry(1.2,.24,10,48),new THREE.MeshBasicMaterial({color:0xff2f9a,transparent:true,opacity:1}));
           blast.rotation.x=Math.PI/2;blast.position.set(r.x,.24,r.z);scene.add(blast);
@@ -411,9 +433,11 @@
           const gameHost=document.querySelector('#game'),hud=document.querySelector('.hud');
           gameHost.classList.remove('screen-shake');hud.classList.remove('screen-shake');void gameHost.offsetWidth;
           gameHost.classList.add('screen-shake');hud.classList.add('screen-shake');
-          scene.remove(r.mesh,r.core);r.mesh.geometry.dispose();r.mesh.material.dispose();r.core.geometry.dispose();r.core.material.dispose();riftWarnings.splice(i,1);
+          scene.remove(r.mesh,r.core,r.cracks);r.cracks.geometry.dispose();r.cracks.material.dispose();r.mesh.geometry.dispose();r.mesh.material.dispose();r.core.geometry.dispose();r.core.material.dispose();riftWarnings.splice(i,1);
         }
       }
+      if(t>blackoutUntil){key.intensity=3.0;glow.intensity=45;}
+      if(t>roarUntil&&boss.visible)bossLight.intensity=25+Math.sin(t*5)*4;
       if(t>dimensionalFlashUntil)document.querySelector('#dimensionalFlash').classList.remove('active');
       if(t>riftAlertUntil)document.querySelector('#riftAlert').classList.remove('active');
       // Evento global: a realidade muda de frequência por alguns segundos.
