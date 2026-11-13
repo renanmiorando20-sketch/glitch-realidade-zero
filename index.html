@@ -239,17 +239,31 @@
       scene.children.forEach(o=>{if(o.userData.float){o.position.y=o.userData.float.y+Math.sin(t+o.userData.float.phase)*.45;o.rotation.y+=dt*.08;}});
       portal.rotation.y=Math.sin(t*.5)*.12; ring.rotation.z=Math.sin(t*.8)*.06;
       if(boss.visible){
-        boss.rotation.y=Math.PI+Math.sin(t*.35)*.12; bossHalo.rotation.z+=dt*.7;
-        boss.position.y=2.2+Math.sin(t*1.8)*.35;
+        bossHalo.rotation.z+=dt*(boss.userData.active?1.8:.7);
         const stunned=t<boss.userData.stunnedUntil;
-        bossCore.material.emissiveIntensity=stunned?.25:1.5+Math.sin(t*5)*.5;
-        if(boss.userData.active&&!stunned){
+        // Mesmo adormecido, o Colosso respira e flutua no ar.
+        boss.position.y=(boss.userData.active?2.35:2.2)+Math.sin(t*(boss.userData.active?3.2:1.8))*(boss.userData.active?.48:.35);
+        bossCore.rotation.x+=dt*.22; bossCore.rotation.z+=dt*.16;
+        bossCore.material.emissiveIntensity=stunned?.25:(boss.userData.active?2.1:1.5)+Math.sin(t*5)*.5;
+        bossEye.scale.setScalar(stunned?.78:1+Math.sin(t*6)*.09);
+        bossLight.intensity=stunned?5:(boss.userData.active?25:18)+Math.sin(t*5)*4;
+        if(boss.userData.active&&!stunned&&boss.userData.health>0){
           const dx=player.position.x-boss.position.x,dz=player.position.z-boss.position.z,d=Math.hypot(dx,dz)||1;
           boss.rotation.y=Math.atan2(dx,dz);
-          if(t-boss.userData.lastAttack>3.4){
+          // O chefe agora avança de verdade na direção do jogador.
+          if(d>3.7){
+            const chaseSpeed=state.eventActive?2.25:1.35;
+            boss.position.x+=(dx/d)*chaseSpeed*dt;
+            boss.position.z+=(dz/d)*chaseSpeed*dt;
+          }
+          // Ataque de impacto quando chega perto.
+          if(d<5.2&&t-boss.userData.lastAttack>2.8){
             boss.userData.lastAttack=t;
-            if(d<6){player.position.x+=(dx/d)*1.25;player.position.z+=(dz/d)*1.25;notify('GOLPE DO COLOSSO! Mantenha distância!');}
-            else notify('O COLOSSO CARREGA UM ATAQUE...');
+            player.position.x+=(dx/d)*2.0;
+            player.position.z+=(dz/d)*2.0;
+            boss.scale.setScalar(1.55);
+            setTimeout(()=>{if(boss.userData.health>0)boss.scale.setScalar(1.35);},180);
+            notify('GOLPE DO COLOSSO! DESVIE E CONTRA-ATAQUE COM PULSO!');
           }
         }
       }
