@@ -199,6 +199,10 @@
 
     const state={started:false, vx:0,vz:0,vy:0, grounded:true, folded:false, shards:0, completed:false, pulseReady:true, eventActive:false};
     const pulseWaves=[];
+    const dimensionalWaves=[];
+    const riftWarnings=[];
+    let nextDimensionalAttack=0;
+    let cameraShake=0;
     function firePulse(){
       if(!state.started||!state.pulseReady)return;
       state.pulseReady=false;
@@ -247,6 +251,22 @@
         bossCore.material.emissiveIntensity=stunned?.25:(boss.userData.active?2.1:1.5)+Math.sin(t*5)*.5;
         bossEye.scale.setScalar(stunned?.78:1+Math.sin(t*6)*.09);
         bossLight.intensity=stunned?5:(boss.userData.active?25:18)+Math.sin(t*5)*4;
+        // GLITCH 8.0 — ataques dimensionais em ondas e fendas telegrafadas.
+        if(state.started&&state.shards>=3&&boss.userData.health>0&&!stunned&&t>nextDimensionalAttack){
+          const rage=3-boss.userData.health;
+          nextDimensionalAttack=t+(rage===2?7.5:rage===1?9:11);
+          const waveMesh=new THREE.Mesh(new THREE.TorusGeometry(1,.13,8,56),new THREE.MeshBasicMaterial({color:0xb45cff,transparent:true,opacity:.95}));
+          waveMesh.rotation.x=Math.PI/2;
+          waveMesh.position.set(boss.position.x,.22,boss.position.z);
+          scene.add(waveMesh);
+          dimensionalWaves.push({mesh:waveMesh,x:boss.position.x,z:boss.position.z,age:0,hit:false,max:Math.min(10,Math.hypot(player.position.x-boss.position.x,player.position.z-boss.position.z)+3)});
+          const warning=new THREE.Mesh(new THREE.TorusGeometry(.85,.075,6,40),new THREE.MeshBasicMaterial({color:0xff3d8b,transparent:true,opacity:.9}));
+          warning.rotation.x=Math.PI/2;
+          warning.position.set(player.position.x,.16,player.position.z);
+          scene.add(warning);
+          riftWarnings.push({mesh:warning,x:player.position.x,z:player.position.z,age:0});
+          notify(rage===2?'FÚRIA DIMENSIONAL! SAIA DA FENDA!':'ONDAS DO VAZIO! SALTE OU DESVIE!');
+        }
         // IA 7.0 — caça equilibrada, investida telegrafada e fúria por vida.
         if(state.started&&state.shards>=3&&boss.visible&&boss.userData.health>0){
           boss.userData.active=true;
@@ -325,6 +345,34 @@
       eye.rotation.y=Math.sin(t*.28)*.22; eye.rotation.x=Math.sin(t*.42)*.08;
       eyeRing.rotation.z=t*.12; iris.position.x=Math.sin(t*.7)*.42;
       pulseWaves.forEach((w,i)=>{w.age+=dt;w.mesh.scale.setScalar(1+w.age*7);w.mesh.material.opacity=Math.max(0,1-w.age/1.15);if(w.age>1.15){scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();pulseWaves.splice(i,1);}});
+      // Ondas expansivas: atravessam a arena e podem ser saltadas.
+      for(let i=dimensionalWaves.length-1;i>=0;i--){
+        const w=dimensionalWaves[i];w.age+=dt;
+        const radius=.7+w.age*5.2;
+        w.mesh.scale.setScalar(radius);
+        w.mesh.material.opacity=Math.max(0,1-w.age/2.0);
+        const pd=Math.hypot(player.position.x-w.x,player.position.z-w.z);
+        if(!w.hit&&Math.abs(pd-radius)<.72&&player.position.y<1.25){
+          w.hit=true;cameraShake=.32;
+          const dx=player.position.x-w.x,dz=player.position.z-w.z,d=pd||1;
+          player.position.x+=(dx/d)*1.25;player.position.z+=(dz/d)*1.25;
+          state.vy=Math.max(state.vy,3.8);
+          notify('A ONDA TE ATINGIU! SALTE PARA ESCAPAR!');
+        }
+        if(w.age>2){scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();dimensionalWaves.splice(i,1);}
+      }
+      // Fendas: o círculo pisca antes de explodir, permitindo sair do local marcado.
+      for(let i=riftWarnings.length-1;i>=0;i--){
+        const r=riftWarnings[i];r.age+=dt;
+        r.mesh.material.opacity=.35+Math.abs(Math.sin(r.age*13))*.55;
+        r.mesh.scale.setScalar(1+r.age*.18);
+        if(r.age>.95){
+          const blast=new THREE.Mesh(new THREE.TorusGeometry(1.05,.16,8,40),new THREE.MeshBasicMaterial({color:0xff3d8b,transparent:true,opacity:.95}));
+          blast.rotation.x=Math.PI/2;blast.position.set(r.x,.2,r.z);scene.add(blast);
+          dimensionalWaves.push({mesh:blast,x:r.x,z:r.z,age:0,hit:false,max:2.3});
+          scene.remove(r.mesh);r.mesh.geometry.dispose();r.mesh.material.dispose();riftWarnings.splice(i,1);
+        }
+      }
       // Evento global: a realidade muda de frequência por alguns segundos.
       if(state.started&&t>nextEvent&&!state.eventActive){state.eventActive=true;eventEnd=t+7;nextEvent=t+34;document.querySelector('#worldEvent').classList.add('active');document.querySelector('#eventLabel').classList.add('show');notify('⚠ ANOMALIA DIMENSIONAL — A SENTINELA FICOU MAIS RÁPIDA!');}
       if(state.eventActive&&t>eventEnd){state.eventActive=false;document.querySelector('#worldEvent').classList.remove('active');document.querySelector('#eventLabel').classList.remove('show');notify('A realidade voltou a estabilizar... por enquanto.');}
@@ -339,7 +387,7 @@
         if(player.position.y<=.5){player.position.y=.5;state.vy=0;state.grounded=true;}
         body.position.y=.95+Math.sin(t*10)*(Math.abs(state.vx)+Math.abs(state.vz)>.5?.045:0);
         const target=new THREE.Vector3(player.position.x,player.position.y+4.2,player.position.z+8.5);
-        camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+1,player.position.z-2.5);
+        camera.position.lerp(target,.09);if(cameraShake>0){camera.position.x+=(Math.random()-.5)*cameraShake;camera.position.y+=(Math.random()-.5)*cameraShake;cameraShake=Math.max(0,cameraShake-dt*.9);}camera.lookAt(player.position.x,player.position.y+1,player.position.z-2.5);
         if(state.shards===3&&!boss.userData.active&&boss.userData.health<=0&&!state.completed&&player.position.distanceTo(new THREE.Vector3(0,.5,-6.5))<2.2){state.completed=true;document.querySelector('#objectiveText').textContent='Dimensão 02 desbloqueada. Você venceu a primeira ruptura!';document.querySelector('#hint').textContent='Primeira ruptura concluída. Novas dimensões em breve.';notify('✦ RUPTURA CONCLUÍDA — DIMENSÃO 02 DESBLOQUEADA ✦');}
       }else{camera.position.lerp(new THREE.Vector3(0,7,16),.025);camera.lookAt(0,1,0);}
       renderer.render(scene,camera);
